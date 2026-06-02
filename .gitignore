@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+
+# Build outputs — desktop
+packages/desktop/out/           # Electron Forge сборка (EXE, nupkg, .pak, .dll)
+packages/desktop/.vite/         # Vite build cache
+packages/desktop/release/       # Собранные EXE
+packages/desktop/release-standalone/  # Standalone сборка
+
+# Build outputs — core
+packages/core/dist/             # tsc output
+packages/core/packages/         # nested empty package
+dist/
+dist-electron/
+*.tsbuildinfo
+
+# Console (test area, не для коммита)
+packages/console/
+
+# Mobile (отдельный проект)
+packages/mobile/
+android/
+app.json
+.expo/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+
+# Personal Claude config
+.claude/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Root junk
+libs.txt
+plan.txt
+test-barbie.ts
+
+# Temp plan
+CLEANUP-PLAN.md

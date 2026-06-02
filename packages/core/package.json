@@ -1,0 +1,19 @@
+{
+  "name": "@music-player/core",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0"
+  },
+  "dependencies": {
+    "yandex-music": "^1.7.0",
+    "youtubei.js": "^17.0.1"
+  }
+}

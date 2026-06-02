@@ -1,0 +1,26 @@
+{
+  "name": "music-player",
+  "private": true,
+  "workspaces": [
+    "packages/core",
+    "packages/mobile",
+    "packages/desktop",
+    "packages/console"
+  ],
+  "devDependencies": {
+    "typescript": "~6.0.3"
+  },
+  "version": "1.0.0",
+  "scripts": {
+    "desktop": "npm run dev -w packages/desktop",
+    "desktop:electron": "npm run electron:dev -w packages/desktop",
+    "desktop:build": "npm run build -w packages/desktop",
+    "desktop:start": "npm run start -w packages/desktop",
+    "console:start": "npm run start -w packages/console"
+  },
+  "dependencies": {
+    "expo": "~56.0.4",
+    "react": "19.2.3",
+    "react-native": "0.85.3"
+  }
+}
