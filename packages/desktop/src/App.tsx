@@ -345,6 +345,12 @@ function SettingsMenu(props: {
               min={1} max={20}
               onChange={v => updatePlayer({ matchCandidateDisplayLimit: v })}
             />
+            <SettingsNumField
+              label="Max Queue Size"
+              value={pending.player.maxHistoryLength}
+              min={5} max={70}
+              onChange={v => updatePlayer({ maxHistoryLength: v })}
+            />
           </div>
 
           {/* Download */}
@@ -523,33 +529,49 @@ export default function App() {
 
   // --- Init queue & play (after auth) ---
 
-  const initQueueAndPlay = useCallback(async () => {
+  const initQueueAndPlay = useCallback(async (retries = 3) => {
     setStatus("loading");
-    console.log(`[App] calling queueInit...`);
-    try {
-      const track = await window.api.queueInit();
-      console.log(`[App] queueInit returned: ${track ? `"${track.ym.artist} - ${track.ym.title}" state=${track.state} hasStream=${!!track.streamUrl} hasYT=${!!track.yt}` : 'null'}`);
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      console.log(`[App] calling queueInit (попытка ${attempt}/${retries})...`);
+      try {
+        const track = await window.api.queueInit();
+        console.log(`[App] queueInit returned: ${track ? `"${track.ym.artist} - ${track.ym.title}" state=${track.state} hasStream=${!!track.streamUrl} hasYT=${!!track.yt}` : 'null'}`);
 
-      // Load volume from config
-      const config: ConfigData = await window.api.getConfig();
-      const savedVolume = config.player.volume;
-      volumeRef.current = savedVolume;
-      setVolume(savedVolume);
-      const audio = audioRef.current;
-      if (audio) audio.volume = savedVolume;
+        // Load volume from config
+        const config: ConfigData = await window.api.getConfig();
+        const savedVolume = config.player.volume;
+        volumeRef.current = savedVolume;
+        setVolume(savedVolume);
+        const audio = audioRef.current;
+        if (audio) audio.volume = savedVolume;
 
-      if (track) {
-        setCurrentTrack(track);
-        currentTrackRef.current = track;
-        setStatus("playing");
-        playTrack(track);
-      } else {
-        setError("No tracks available");
-        setStatus("idle");
+        if (track) {
+          setCurrentTrack(track);
+          currentTrackRef.current = track;
+          setStatus("playing");
+          playTrack(track);
+          return;
+        }
+
+        // Треков нет — возможно временная проблема (YT rate-limit и т.п.)
+        if (attempt < retries) {
+          const delay = Math.min(1000 * attempt, 3000);
+          console.log(`[App] Нет треков (${attempt}/${retries}), жду ${delay}ms...`);
+          await new Promise(r => setTimeout(r, delay));
+        } else {
+          setError("No tracks available");
+          setStatus("idle");
+        }
+      } catch (e: any) {
+        if (attempt < retries) {
+          const delay = Math.min(1000 * attempt, 3000);
+          console.log(`[App] Инициализация не удалась (${attempt}/${retries}): ${e.message ?? e}, жду ${delay}ms...`);
+          await new Promise(r => setTimeout(r, delay));
+        } else {
+          setError(e.message ?? "Init failed");
+          setStatus("idle");
+        }
       }
-    } catch (e: any) {
-      setError(e.message ?? "Init failed");
-      setStatus("idle");
     }
   }, [playTrack]);
 

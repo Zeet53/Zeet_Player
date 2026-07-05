@@ -53,6 +53,7 @@ function createQueue(session: { sessionId: string; from: string; stationId: stri
   const queue = new YtRadioQueue(session, ymApi!, {
     batchSize: cfg.player.batchSize,
     refillThreshold: cfg.player.refillThreshold,
+    maxHistoryLength: cfg.player.maxHistoryLength,
   });
   queue.matchCandidateSearchLimit = cfg.player.matchCandidateSearchLimit;
   queue.matchCandidateDisplayLimit = cfg.player.matchCandidateDisplayLimit;
@@ -504,6 +505,7 @@ ipcMain.handle("config:saveAll", async (_event, data: { player: any; download: a
     if (data.player.refillThreshold !== undefined) rq.refillThreshold = data.player.refillThreshold;
     if (data.player.matchCandidateSearchLimit !== undefined) rq.matchCandidateSearchLimit = data.player.matchCandidateSearchLimit;
     if (data.player.matchCandidateDisplayLimit !== undefined) rq.matchCandidateDisplayLimit = data.player.matchCandidateDisplayLimit;
+    if (data.player.maxHistoryLength !== undefined) rq.maxHistoryLength = data.player.maxHistoryLength;
   }
 });
 

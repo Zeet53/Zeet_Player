@@ -83,6 +83,7 @@ export interface PlayerConfig {
   refillThreshold: number;
   matchCandidateSearchLimit: number;
   matchCandidateDisplayLimit: number;
+  maxHistoryLength: number;
 }
 
 export interface DownloadConfig {

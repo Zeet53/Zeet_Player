@@ -13,6 +13,7 @@ export interface PlayerConfig {
   refillThreshold: number;
   matchCandidateSearchLimit: number;
   matchCandidateDisplayLimit: number;
+  maxHistoryLength: number;
 }
 
 export interface WaveConfig {
@@ -49,6 +50,7 @@ const CONFIG_DEFAULTS: ConfigData = {
     refillThreshold: 2,
     matchCandidateSearchLimit: 9,
     matchCandidateDisplayLimit: 9,
+    maxHistoryLength: 35,
   },
   wave: {
     moodEnergy: "all",
@@ -124,8 +126,18 @@ class FileStore<T> {
   }
 
   protected merge(parsed: Partial<T>): T {
-    // Default merge — override in subclass if more logic needed
-    return { ...this.deepClone(this.defaults), ...parsed };
+    // Deep merge — каждый вложенный объект мержится отдельно,
+    // чтобы новые поля из defaults не терялись при загрузке старого конфига
+    const merged = this.deepClone(this.defaults);
+    for (const key of Object.keys(parsed) as Array<keyof T>) {
+      const val = parsed[key];
+      if (val !== null && typeof val === "object" && !Array.isArray(val)) {
+        (merged as any)[key] = { ...(merged as any)[key], ...val };
+      } else if (val !== undefined) {
+        (merged as any)[key] = val;
+      }
+    }
+    return merged;
   }
 }
 

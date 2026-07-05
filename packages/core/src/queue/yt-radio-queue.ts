@@ -55,6 +55,8 @@ export class YtRadioQueue {
 
   refillThreshold = 2;
   batchSize = 10;
+  /** Максимум треков, отправляемых YM API как "уже виденные" */
+  maxHistoryLength = 35;
 
   /** Сколько треков запрашиваем у YT для ручного матчинга */
   matchCandidateSearchLimit = 15;
@@ -97,7 +99,7 @@ export class YtRadioQueue {
   constructor(
     session: { sessionId: string; from: string; stationId: string },
     api: YandexMusicApi,
-    options?: { refillThreshold?: number; batchSize?: number },
+    options?: { refillThreshold?: number; batchSize?: number; maxHistoryLength?: number },
   ) {
     this.sessionId = session.sessionId;
     this.from = session.from;
@@ -109,6 +111,8 @@ export class YtRadioQueue {
       this.refillThreshold = options.refillThreshold;
     if (options?.batchSize !== undefined)
       this.batchSize = options.batchSize;
+    if (options?.maxHistoryLength !== undefined)
+      this.maxHistoryLength = options.maxHistoryLength;
   }
 
   get currentTrack(): YtResolvedTrack | null {
@@ -142,6 +146,10 @@ export class YtRadioQueue {
       if (!this.queueHistory.includes(qid)) {
         this.queueHistory.push(qid);
       }
+    }
+    // Обрезаем историю — YM API не нужно знать все треки, достаточно последних
+    if (this.queueHistory.length > this.maxHistoryLength) {
+      this.queueHistory = this.queueHistory.slice(-this.maxHistoryLength);
     }
     this.batchId = newBatchId;
 
@@ -294,6 +302,22 @@ export class YtRadioQueue {
     );
   }
 
+  /** Повторить запрос, если не удалось — один раз через небольшую паузу */
+  private async withRetry<T>(fn: () => Promise<T>, label: string): Promise<T | null> {
+    try {
+      return await fn();
+    } catch (e: any) {
+      console.log(`[Queue] ${label} — ошибка: ${e.message ?? e}, повтор через 2с...`);
+      await new Promise(r => setTimeout(r, 2000));
+      try {
+        return await fn();
+      } catch (e2: any) {
+        console.log(`[Queue] ${label} — повтор тоже не удался: ${e2.message ?? e2}`);
+        return null;
+      }
+    }
+  }
+
   private async ensureBuffer(feedback?: {
     type: FeedbackType;
     time: number;
@@ -320,11 +344,14 @@ export class YtRadioQueue {
     }
 
     console.log(`[Queue] Осталось ${remaining}, загружаю ещё...`);
-    const result = await this.api.getSessionTracks(
-      this.sessionId,
-      this.queueHistory,
-      feedbacks,
+    const result = await this.withRetry(
+      () => this.api.getSessionTracks(this.sessionId, this.queueHistory, feedbacks),
+      "getSessionTracks",
     );
+    if (!result) {
+      console.log(`[Queue] Не удалось загрузить треки, продолжаем с текущими`);
+      return;
+    }
     const tracks = result.tracks.slice(0, this.batchSize);
     const queueIds = result.queueIds.slice(0, this.batchSize);
     const added = await this.addTracks(tracks, queueIds, result.batchId);
