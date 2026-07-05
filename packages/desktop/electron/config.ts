@@ -186,6 +186,39 @@ export class SecretsManager extends FileStore<SecretsData> {
 // MatchesStore — ручные матчи ymId → ytVideoId
 // ──────────────────────────────────────────────
 
+// ──────────────────────────────────────────────
+// PhysicalMatchStore — локальные аудиофайлы
+// ──────────────────────────────────────────────
+
+export interface PhysicalMatchEntry {
+  artist: string;
+  title: string;
+  localFilePath: string;   // путь к файлу в media/
+  coverPath?: string;       // путь к обложке в media/
+}
+
+export type PhysicalMatchesData = Record<string, PhysicalMatchEntry>; // key: "artist:title"
+
+export class PhysicalMatchStore extends FileStore<PhysicalMatchesData> {
+  constructor() {
+    super("physical-matches.json", {} as PhysicalMatchesData);
+  }
+
+  getMediaDir(): string {
+    const userDataPath = app.getPath("userData");
+    return path.join(userDataPath, "media");
+  }
+
+  /** Удалить запись и её файлы */
+  async remove(key: string): Promise<void> {
+    const entry = this.data[key];
+    if (entry) {
+      delete this.data[key];
+      await this.save();
+    }
+  }
+}
+
 export class MatchesStore extends FileStore<MatchesData> {
   constructor() {
     super("matches.json", {} as MatchesData);

@@ -36,4 +36,13 @@ contextBridge.exposeInMainWorld("api", {
 
   // Download
   downloadTrack: () => ipcRenderer.invoke("queue:downloadTrack"),
+
+  // Physical matching
+  physicalPickAudio: () => ipcRenderer.invoke("physical:pickAudio"),
+  physicalPickCover: () => ipcRenderer.invoke("physical:pickCover"),
+  physicalSave: (data: any) => ipcRenderer.invoke("physical:save", data),
+  physicalDelete: (key: string) => ipcRenderer.invoke("physical:delete", key),
+  physicalReadFile: (filePath: string) => ipcRenderer.invoke("physical:readFile", filePath),
+  physicalList: () => ipcRenderer.invoke("physical:list"),
+  physicalGetForTrack: (data: { artist: string; title: string }) => ipcRenderer.invoke("physical:getForTrack", data),
 });

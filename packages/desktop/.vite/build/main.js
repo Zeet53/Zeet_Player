@@ -21,7 +21,8 @@ var __privateWrapper = (obj, member, setter, getter) => ({
 var _value, _Maybe_instances, checkPrimitive_fn, assertPrimitive_fn, _result, _cache, _legacy_listeners, _session, _cookie, _fetch, _HTTPClient_instances, processJsonPayload_fn, setupCommonHeaders_fn, adjustContext_fn, _SubscribeButtonView_instances, parseButtonContent_fn, _a, _b, _data, _data2, _data3, _actions, _actions2, _continuation, _CommentThread_instances, getPatchedReplies_fn, _c, _data4, _data5, _data6, _data7, _data8, _data9, _data10, _data11, _data12, _data13, _data14, _data15, _data16, _data17, _data18, _data19, _data20, _data21, _data22, _d, _e, _MusicResponsiveListItem_instances, parseOther_fn, parseVideoOrSong_fn, parseSong_fn, parseVideo_fn, parseArtist_fn, parseLibraryArtist_fn, parseNonMusicTrack_fn, parsePodcastShow_fn, parseAlbum_fn, parsePlaylist_fn, _TwoColumnWatchNextResults_instances, parseAutoplaySet_fn, _actions3, _this_response_nsig_cache, _page, _page2, _actions4, _memo, _continuation2, _Feed_instances, isParsed_fn, getBodyContinuations_fn, _chips, _page3, _actions5, _cpn, _playback_tracking, _actions6, _tabs, _page4, _actions7, _continuation3, _page5, _page6, _actions8, _items, _Playlist_instances, getStat_fn, _f, _Library_instances, getAll_fn, _g, _last_update_time, _estimated_update_interval, _callback, _action_queue, _next_update_id, _poll_response_delay_queue, _actions9, _video_id, _channel_id, _continuation4, _mcontinuation, _retry_count, _LiveChat_instances, pollLivechat_fn, emitSmoothedActions_fn, pollMetadata_fn, wait_fn, _page7, _actions10, _page8, _actions11, _watch_next_continuation, _h, _page9, _actions12, _page10, _page11, _actions13, _page12, _page13, _actions14, _continuation5, _i, _page14, _actions15, _continuation6, _page15, _actions16, _continuation7, _page16, _actions17, _continuation8, _last_fetched_suggestions, _suggestions_continuation, _Playlist_instances2, fetchSuggestions_fn, _page17, _actions18, _page18, _actions19, _continuation9, _j, _actions20, _page19, _watch_next_continuation2, _detail, _Actions_instances, isBrowse_fn, needsLogin_fn, _session2, _OAuth2_instances, loadFromCache_fn, http_get, _Session_static, storeSession_fn, getSessionData_fn, buildContext_fn, getVisitorID_fn, _session3, _session4, _actions21, _Music_instances, fetchInfoFromVideoId_fn, fetchInfoFromEndpoint_fn, _session5, _Studio_instances, getInitialUploadData_fn, uploadVideo_fn, setVideoMetadata_fn, _actions22, _actions23, _PlaylistManager_instances, getPlaylist_fn, _actions24, _session6, _persistent_directory, _persistent, _Cache_instances, createCache_fn;
 const electron = require("electron");
 const path = require("path");
-const fsSync = require("fs");
+const fs = require("fs");
+const fs$1 = require("fs/promises");
 const promises = require("stream/promises");
 const require$$3 = require("stream");
 const require$$0$2 = require("url");
@@ -34,7 +35,6 @@ const require$$0$1 = require("os");
 const require$$8 = require("zlib");
 const crypto = require("crypto");
 const web = require("stream/web");
-const fs = require("fs/promises");
 const vm = require("vm");
 var _documentCurrentScript = typeof document !== "undefined" ? document.currentScript : null;
 var dist = {};
@@ -6360,7 +6360,7 @@ function requireForm_data() {
   var http = require$$1$2;
   var https = require$$2;
   var parseUrl = require$$0$2.parse;
-  var fs2 = fsSync;
+  var fs$12 = fs;
   var Stream = require$$3.Stream;
   var crypto$1 = crypto;
   var mime = requireMimeTypes();
@@ -6427,7 +6427,7 @@ function requireForm_data() {
       if (value.end != void 0 && value.end != Infinity && value.start != void 0) {
         callback(null, value.end + 1 - (value.start ? value.start : 0));
       } else {
-        fs2.stat(value.path, function(err, stat) {
+        fs$12.stat(value.path, function(err, stat) {
           if (err) {
             callback(err);
             return;
@@ -46424,9 +46424,9 @@ const _Cache = class _Cache {
     await __privateMethod(this, _Cache_instances, createCache_fn).call(this);
     const file = path.resolve(this.cache_dir, key);
     try {
-      const stat = await fs.stat(file);
+      const stat = await fs$1.stat(file);
       if (stat.isFile()) {
-        const data2 = await fs.readFile(file);
+        const data2 = await fs$1.readFile(file);
         return data2.buffer;
       }
       throw new Error("An unexpected file was found in place of the cache key");
@@ -46439,13 +46439,13 @@ const _Cache = class _Cache {
   async set(key, value) {
     await __privateMethod(this, _Cache_instances, createCache_fn).call(this);
     const file = path.resolve(this.cache_dir, key);
-    await fs.writeFile(file, new Uint8Array(value));
+    await fs$1.writeFile(file, new Uint8Array(value));
   }
   async remove(key) {
     await __privateMethod(this, _Cache_instances, createCache_fn).call(this);
     const file = path.resolve(this.cache_dir, key);
     try {
-      await fs.unlink(file);
+      await fs$1.unlink(file);
     } catch (e) {
       if ((e == null ? void 0 : e.code) === "ENOENT")
         return;
@@ -46459,12 +46459,12 @@ _Cache_instances = new WeakSet();
 createCache_fn = async function() {
   const dir = this.cache_dir;
   try {
-    const cwd = await fs.stat(dir);
+    const cwd = await fs$1.stat(dir);
     if (!cwd.isDirectory())
       throw new Error("An unexpected file was found in place of the cache directory");
   } catch (e) {
     if ((e == null ? void 0 : e.code) === "ENOENT")
-      await fs.mkdir(dir, { recursive: true });
+      await fs$1.mkdir(dir, { recursive: true });
     else
       throw e;
   }
@@ -47198,7 +47198,7 @@ class FileStore {
   }
   async load() {
     try {
-      const raw = await fs.readFile(this.filePath, "utf-8");
+      const raw = await fs$1.readFile(this.filePath, "utf-8");
       const parsed = JSON.parse(raw);
       this.data = this.merge(parsed);
       console.log(`[Config] loaded from ${this.filePath}`);
@@ -47211,10 +47211,10 @@ class FileStore {
   }
   async save() {
     const dir = path.dirname(this.filePath);
-    if (!fsSync.existsSync(dir)) {
-      fsSync.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
-    await fs.writeFile(this.filePath, JSON.stringify(this.data, null, 2), "utf-8");
+    await fs$1.writeFile(this.filePath, JSON.stringify(this.data, null, 2), "utf-8");
   }
   get() {
     return this.data;
@@ -47273,6 +47273,23 @@ class SecretsManager extends FileStore {
     await this.save();
   }
 }
+class PhysicalMatchStore extends FileStore {
+  constructor() {
+    super("physical-matches.json", {});
+  }
+  getMediaDir() {
+    const userDataPath = electron.app.getPath("userData");
+    return path.join(userDataPath, "media");
+  }
+  /** Удалить запись и её файлы */
+  async remove(key) {
+    const entry = this.data[key];
+    if (entry) {
+      delete this.data[key];
+      await this.save();
+    }
+  }
+}
 class MatchesStore extends FileStore {
   constructor() {
     super("matches.json", {});
@@ -47286,6 +47303,9 @@ class MatchesStore extends FileStore {
 }
 const __filename$1 = require$$0$2.fileURLToPath(typeof document === "undefined" ? require("url").pathToFileURL(__filename).href : _documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === "SCRIPT" && _documentCurrentScript.src || new URL("main.js", document.baseURI).href);
 const __dirname$1 = path.dirname(__filename$1);
+electron.protocol.registerSchemesAsPrivileged([
+  { scheme: "local-media", privileges: { standard: true, secure: true, supportFetchAPI: true, media: true } }
+]);
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
 let ymApi = null;
 let ymToken = "";
@@ -47295,6 +47315,7 @@ let mainWindow = null;
 let configManager;
 let secretsManager;
 let matchesStore;
+let physicalMatchStore;
 let currentWaveSettings = {
   moodEnergy: "all",
   diversity: "default",
@@ -47590,7 +47611,7 @@ electron.ipcMain.handle("queue:downloadTrack", async () => {
     const webStream = await ytApi.download(videoId);
     if (!webStream) return { status: "error", message: "Не удалось получить поток от YouTube" };
     const nodeStream = require$$3.Readable.fromWeb(webStream);
-    await promises.pipeline(nodeStream, fsSync.createWriteStream(filePath));
+    await promises.pipeline(nodeStream, fs.createWriteStream(filePath));
     console.log(`[Download] done: ${filePath}`);
     return { status: "done", filePath };
   } catch (e) {
@@ -47711,6 +47732,83 @@ electron.ipcMain.handle("config:saveAll", async (_event, data2) => {
     if (data2.player.maxHistoryLength !== void 0) rq.maxHistoryLength = data2.player.maxHistoryLength;
   }
 });
+electron.ipcMain.handle("physical:pickAudio", async () => {
+  if (!mainWindow) return null;
+  const result = await electron.dialog.showOpenDialog(mainWindow, {
+    properties: ["openFile"],
+    filters: [
+      { name: "Audio", extensions: ["mp3", "wav", "flac", "ogg", "m4a", "aac", "wma"] }
+    ]
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  const filePath = result.filePaths[0];
+  const fileName = path.basename(filePath, path.extname(filePath));
+  return { filePath, fileName };
+});
+electron.ipcMain.handle("physical:pickCover", async () => {
+  if (!mainWindow) return null;
+  const result = await electron.dialog.showOpenDialog(mainWindow, {
+    properties: ["openFile"],
+    filters: [
+      { name: "Images", extensions: ["jpg", "jpeg", "png", "webp", "bmp"] }
+    ]
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  return result.filePaths[0];
+});
+electron.ipcMain.handle("physical:save", async (_event, data2) => {
+  const mediaDir = physicalMatchStore.getMediaDir();
+  if (!fs.existsSync(mediaDir)) {
+    fs.mkdirSync(mediaDir, { recursive: true });
+  }
+  const ext = path.extname(data2.audioPath);
+  const audioFileName = `audio_${Date.now()}${ext}`;
+  const audioDest = path.join(mediaDir, audioFileName);
+  await fs$1.copyFile(data2.audioPath, audioDest);
+  let coverDest;
+  if (data2.coverPath) {
+    const coverExt = path.extname(data2.coverPath);
+    const coverFileName = `cover_${Date.now()}${coverExt}`;
+    coverDest = path.join(mediaDir, coverFileName);
+    await fs$1.copyFile(data2.coverPath, coverDest);
+  }
+  const all = physicalMatchStore.get();
+  all[data2.key] = {
+    artist: data2.artist,
+    title: data2.title,
+    localFilePath: audioDest,
+    coverPath: coverDest
+  };
+  await physicalMatchStore.save();
+  const audioBuffer = await fs$1.readFile(audioDest);
+  console.log(`[Physical] saved match "${data2.key}": ${audioDest} (${audioBuffer.length} bytes)`);
+  return {
+    key: data2.key,
+    entry: all[data2.key],
+    audioData: new Uint8Array(audioBuffer)
+  };
+});
+electron.ipcMain.handle("physical:readFile", async (_event, filePath) => {
+  try {
+    const buffer = await fs$1.readFile(filePath);
+    return { audioData: new Uint8Array(buffer) };
+  } catch (e) {
+    console.error(`[Physical] readFile error: ${e.message}`);
+    return null;
+  }
+});
+electron.ipcMain.handle("physical:delete", async (_event, key) => {
+  console.log(`[Physical] deleting match "${key}"`);
+  await physicalMatchStore.remove(key);
+});
+electron.ipcMain.handle("physical:list", async () => {
+  return physicalMatchStore.get();
+});
+electron.ipcMain.handle("physical:getForTrack", async (_event, data2) => {
+  const key = `${data2.artist}:${data2.title}`;
+  const all = physicalMatchStore.get();
+  return all[key] ?? null;
+});
 electron.ipcMain.handle("ym:getWaveSettings", async () => {
   return currentWaveSettings;
 });
@@ -47754,10 +47852,16 @@ electron.app.whenReady().then(async () => {
   const appData = electron.app.getPath("appData");
   const zeetPath = path.join(appData, "Zeet Player");
   electron.app.setPath("userData", zeetPath);
+  electron.protocol.handle("local-media", (request2) => {
+    const url = new URL(request2.url);
+    const filePath = url.pathname.replace(/^\//, "");
+    return electron.net.fetch(require$$0$2.pathToFileURL(filePath).href);
+  });
   configManager = new ConfigManager();
   secretsManager = new SecretsManager();
   matchesStore = new MatchesStore();
-  await Promise.all([configManager.load(), secretsManager.load(), matchesStore.load()]);
+  physicalMatchStore = new PhysicalMatchStore();
+  await Promise.all([configManager.load(), secretsManager.load(), matchesStore.load(), physicalMatchStore.load()]);
   createWindow();
 });
 electron.app.on("window-all-closed", () => {

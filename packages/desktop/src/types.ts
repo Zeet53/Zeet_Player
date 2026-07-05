@@ -105,6 +105,21 @@ export interface DownloadResult {
   message?: string;
 }
 
+// ── Physical match types ──
+
+export interface PhysicalMatchEntry {
+  artist: string;
+  title: string;
+  localFilePath: string;
+  coverPath?: string;
+}
+
+export interface PhysicalMatchUploadResult {
+  key: string;
+  entry: PhysicalMatchEntry;
+  audioData: Uint8Array;
+}
+
 export interface Api {
   ping(): Promise<PingResult>;
   ymLoginOAuth(): Promise<{ uid: number; token: string }>;
@@ -142,6 +157,15 @@ export interface Api {
 
   // Download
   downloadTrack(): Promise<DownloadResult>;
+
+  // Physical matching
+  physicalPickAudio(): Promise<{ filePath: string; fileName: string } | null>;
+  physicalPickCover(): Promise<string | null>;
+  physicalSave(data: { key: string; audioPath: string; title: string; artist: string; coverPath?: string }): Promise<PhysicalMatchUploadResult>;
+  physicalDelete(key: string): Promise<void>;
+  physicalReadFile(filePath: string): Promise<{ audioData: Uint8Array } | null>;
+  physicalList(): Promise<Record<string, PhysicalMatchEntry>>;
+  physicalGetForTrack(data: { artist: string; title: string }): Promise<PhysicalMatchEntry | null>;
 }
 
 declare global {

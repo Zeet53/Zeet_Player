@@ -33,6 +33,14 @@ electron.contextBridge.exposeInMainWorld("api", {
   resetConfig: () => electron.ipcRenderer.invoke("config:reset"),
   saveAllSettings: (data) => electron.ipcRenderer.invoke("config:saveAll", data),
   // Download
-  downloadTrack: () => electron.ipcRenderer.invoke("queue:downloadTrack")
+  downloadTrack: () => electron.ipcRenderer.invoke("queue:downloadTrack"),
+  // Physical matching
+  physicalPickAudio: () => electron.ipcRenderer.invoke("physical:pickAudio"),
+  physicalPickCover: () => electron.ipcRenderer.invoke("physical:pickCover"),
+  physicalSave: (data) => electron.ipcRenderer.invoke("physical:save", data),
+  physicalDelete: (key) => electron.ipcRenderer.invoke("physical:delete", key),
+  physicalReadFile: (filePath) => electron.ipcRenderer.invoke("physical:readFile", filePath),
+  physicalList: () => electron.ipcRenderer.invoke("physical:list"),
+  physicalGetForTrack: (data) => electron.ipcRenderer.invoke("physical:getForTrack", data)
 });
 //# sourceMappingURL=preload.js.map

@@ -1,14 +1,20 @@
-import { app, BrowserWindow, ipcMain, session, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, session, dialog, protocol, net } from "electron";
 import path from "path";
 import fs from "fs";
+import fsp from "fs/promises";
 import { pipeline } from "stream/promises";
 import { Readable } from "stream";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 import { YandexMusicApi, YouTubeMusicApi, YtRadioQueue, YtResolvedTrack, YtTrackInfo, WaveSettings } from "@music-player/core";
-import { ConfigManager, SecretsManager, MatchesStore } from "./config.js";
+import { ConfigManager, SecretsManager, MatchesStore, PhysicalMatchStore } from "./config.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Register privileged scheme for local media BEFORE app.whenReady()
+protocol.registerSchemesAsPrivileged([
+  { scheme: "local-media", privileges: { standard: true, secure: true, supportFetchAPI: true, media: true } },
+]);
 
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
 
@@ -22,6 +28,7 @@ let mainWindow: BrowserWindow | null = null;
 let configManager: ConfigManager;
 let secretsManager: SecretsManager;
 let matchesStore: MatchesStore;
+let physicalMatchStore: PhysicalMatchStore;
 
 let currentWaveSettings: WaveSettings = {
   moodEnergy: "all",
@@ -509,6 +516,100 @@ ipcMain.handle("config:saveAll", async (_event, data: { player: any; download: a
   }
 });
 
+// --- Physical matching ---
+
+ipcMain.handle("physical:pickAudio", async () => {
+  if (!mainWindow) return null;
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openFile"],
+    filters: [
+      { name: "Audio", extensions: ["mp3", "wav", "flac", "ogg", "m4a", "aac", "wma"] },
+    ],
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  const filePath = result.filePaths[0];
+  const fileName = path.basename(filePath, path.extname(filePath));
+  return { filePath, fileName };
+});
+
+ipcMain.handle("physical:pickCover", async () => {
+  if (!mainWindow) return null;
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openFile"],
+    filters: [
+      { name: "Images", extensions: ["jpg", "jpeg", "png", "webp", "bmp"] },
+    ],
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  return result.filePaths[0];
+});
+
+ipcMain.handle("physical:save", async (_event, data: { key: string; audioPath: string; title: string; artist: string; coverPath?: string }) => {
+  const mediaDir = physicalMatchStore.getMediaDir();
+  if (!fs.existsSync(mediaDir)) {
+    fs.mkdirSync(mediaDir, { recursive: true });
+  }
+
+  // Copy audio file
+  const ext = path.extname(data.audioPath);
+  const audioFileName = `audio_${Date.now()}${ext}`;
+  const audioDest = path.join(mediaDir, audioFileName);
+  await fsp.copyFile(data.audioPath, audioDest);
+
+  // Copy cover if provided
+  let coverDest: string | undefined;
+  if (data.coverPath) {
+    const coverExt = path.extname(data.coverPath);
+    const coverFileName = `cover_${Date.now()}${coverExt}`;
+    coverDest = path.join(mediaDir, coverFileName);
+    await fsp.copyFile(data.coverPath, coverDest);
+  }
+
+  const all = physicalMatchStore.get();
+  all[data.key] = {
+    artist: data.artist,
+    title: data.title,
+    localFilePath: audioDest,
+    coverPath: coverDest,
+  };
+  await physicalMatchStore.save();
+
+  // Read file content for renderer to create blob:// URL
+  const audioBuffer = await fsp.readFile(audioDest);
+
+  console.log(`[Physical] saved match "${data.key}": ${audioDest} (${audioBuffer.length} bytes)`);
+  return {
+    key: data.key,
+    entry: all[data.key],
+    audioData: new Uint8Array(audioBuffer),
+  };
+});
+
+ipcMain.handle("physical:readFile", async (_event, filePath: string) => {
+  try {
+    const buffer = await fsp.readFile(filePath);
+    return { audioData: new Uint8Array(buffer) };
+  } catch (e: any) {
+    console.error(`[Physical] readFile error: ${e.message}`);
+    return null;
+  }
+});
+
+ipcMain.handle("physical:delete", async (_event, key: string) => {
+  console.log(`[Physical] deleting match "${key}"`);
+  await physicalMatchStore.remove(key);
+});
+
+ipcMain.handle("physical:list", async () => {
+  return physicalMatchStore.get();
+});
+
+ipcMain.handle("physical:getForTrack", async (_event, data: { artist: string; title: string }) => {
+  const key = `${data.artist}:${data.title}`;
+  const all = physicalMatchStore.get();
+  return all[key] ?? null;
+});
+
 // --- Wave settings ---
 
 ipcMain.handle("ym:getWaveSettings", async () => {
@@ -564,10 +665,19 @@ app.whenReady().then(async () => {
   const zeetPath = path.join(appData, "Zeet Player");
   app.setPath("userData", zeetPath);
 
+  // Register local-media protocol to serve local audio files to renderer
+  protocol.handle("local-media", (request) => {
+    const url = new URL(request.url);
+    // url.pathname is /C:/Users/... — strip leading /
+    const filePath = url.pathname.replace(/^\//, "");
+    return net.fetch(pathToFileURL(filePath).href);
+  });
+
   configManager = new ConfigManager();
   secretsManager = new SecretsManager();
   matchesStore = new MatchesStore();
-  await Promise.all([configManager.load(), secretsManager.load(), matchesStore.load()]);
+  physicalMatchStore = new PhysicalMatchStore();
+  await Promise.all([configManager.load(), secretsManager.load(), matchesStore.load(), physicalMatchStore.load()]);
   createWindow();
 });
 

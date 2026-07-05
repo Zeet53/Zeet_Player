@@ -1,0 +1,125 @@
+/* ---- Match item styles ---- */
+
+.match-ym-cover {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.match-ym-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.match-ym-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.match-ym-title {
+  font-size: 14px;
+  color: #fff;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match-ym-artist {
+  font-size: 12px;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match-empty {
+  padding: 24px;
+  text-align: center;
+  color: #777;
+  font-size: 13px;
+}
+
+.match-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  transition: background 0.12s;
+}
+
+.match-item:hover {
+  background: #2a2a2a;
+}
+
+.match-item-cover {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: cover;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.match-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.match-item-title {
+  font-size: 13px;
+  color: #e0e0e0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match-item-artist {
+  font-size: 11px;
+  color: #888;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match-item-play {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid #555;
+  color: #aaa;
+  font-size: 12px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.match-item-play:hover {
+  background: #333;
+  color: #fff;
+}
+
+.match-item-select {
+  flex-shrink: 0;
+  background: #1db954;
+  border: none;
+  color: #000;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.match-item-select:hover {
+  background: #1ed760;
+}
