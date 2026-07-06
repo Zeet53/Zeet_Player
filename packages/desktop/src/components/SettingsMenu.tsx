@@ -72,6 +72,19 @@ export default function SettingsMenu(props: SettingsMenuProps) {
     window.api.setWindowSize(size).catch(e => console.error("setWindowSize error:", e));
   };
 
+  const applyThemeColor = (key: "accentColor" | "surfaceColor" | "bgColor", value: string) => {
+    const hex = value.startsWith("#") ? value : `#${value}`;
+    if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
+    setPending(prev => {
+      const theme = { ...prev.theme, [key]: hex };
+      window.api.setTheme(theme).catch(e => console.error("setTheme error:", e));
+      return { ...prev, theme };
+    });
+    // Apply immediately via CSS variable
+    const cssKey = key === "accentColor" ? "--accent" : key === "surfaceColor" ? "--surface" : "--bg";
+    document.documentElement.style.setProperty(cssKey, hex);
+  };
+
   const toggleAutoResize = () => {
     setPending(prev => {
       const next = !prev.autoResize;
@@ -94,6 +107,24 @@ export default function SettingsMenu(props: SettingsMenuProps) {
     setResetting(false);
   };
 
+  const handleResetSection = async (section: "player" | "window" | "theme" | "download") => {
+    try {
+      const cfg = await window.api.resetSection(section);
+      setPending(cfg);
+      if (section === "window") {
+        windowSizeRef.current = cfg.windowSize;
+        window.api.setWindowSize(cfg.windowSize).catch(e => console.error("setWindowSize error:", e));
+      }
+      if (section === "theme") {
+        document.documentElement.style.setProperty("--accent", cfg.theme.accentColor);
+        document.documentElement.style.setProperty("--surface", cfg.theme.surfaceColor);
+        document.documentElement.style.setProperty("--bg", cfg.theme.bgColor);
+      }
+    } catch (e: any) {
+      console.error("resetSection error:", e.message ?? e);
+    }
+  };
+
   const handlePickFolder = async () => {
     const folder = await props.onOpenFolder();
     if (folder) {
@@ -112,7 +143,10 @@ export default function SettingsMenu(props: SettingsMenuProps) {
         <div className="settings-scroll">
           {/* Player Settings */}
           <div className="settings-section">
-            <div className="settings-section-title">Player Settings</div>
+            <div className="settings-section-title">
+              <span>Player Settings</span>
+              <button className="settings-section-reset" onClick={() => handleResetSection("player")} title="Reset to defaults">↺</button>
+            </div>
             <SettingsNumField
               label="Batch Size"
               value={pending.player.batchSize}
@@ -147,14 +181,21 @@ export default function SettingsMenu(props: SettingsMenuProps) {
 
           {/* Window Size */}
           <div className="settings-section">
-            <div className="settings-section-title">Window</div>
+            <div className="settings-section-title">
+              <span>Window</span>
+              <button className="settings-section-reset" onClick={() => handleResetSection("window")} title="Reset to defaults">↺</button>
+            </div>
             <div className="settings-field">
               <span className="settings-field-label">Width</span>
               <input
                 className="settings-input-num"
                 type="text"
                 inputMode="numeric"
-                defaultValue={pending.windowSize.width}
+                value={String(pending.windowSize.width)}
+                onChange={e => {
+                  const raw = e.target.value.replace(/\D/g, '');
+                  setPending(prev => ({ ...prev, windowSize: { ...prev.windowSize, width: raw === '' ? 700 : parseInt(raw, 10) } }));
+                }}
                 onKeyDown={e => {
                   if (!/^\d$/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Tab" && e.key !== "Home" && e.key !== "End") {
                     e.preventDefault();
@@ -175,7 +216,11 @@ export default function SettingsMenu(props: SettingsMenuProps) {
                 className="settings-input-num"
                 type="text"
                 inputMode="numeric"
-                defaultValue={pending.windowSize.height}
+                value={String(pending.windowSize.height)}
+                onChange={e => {
+                  const raw = e.target.value.replace(/\D/g, '');
+                  setPending(prev => ({ ...prev, windowSize: { ...prev.windowSize, height: raw === '' ? 500 : parseInt(raw, 10) } }));
+                }}
                 onKeyDown={e => {
                   if (!/^\d$/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Tab" && e.key !== "Home" && e.key !== "End") {
                     e.preventDefault();
@@ -201,9 +246,59 @@ export default function SettingsMenu(props: SettingsMenuProps) {
             </div>
           </div>
 
+          {/* Theme Colors */}
+          <div className="settings-section">
+            <div className="settings-section-title">
+              <span>Theme</span>
+              <button className="settings-section-reset" onClick={() => handleResetSection("theme")} title="Reset to defaults">↺</button>
+            </div>
+            <div className="settings-field">
+              <span className="settings-field-label">Accent</span>
+              <input
+                className="settings-input-hex"
+                type="text"
+                maxLength={7}
+                value={pending.theme.accentColor}
+                onChange={e => setPending(prev => ({ ...prev, theme: { ...prev.theme, accentColor: e.target.value } }))}
+                placeholder="#1db954"
+                onBlur={e => applyThemeColor("accentColor", e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+              />
+            </div>
+            <div className="settings-field">
+              <span className="settings-field-label">Surface</span>
+              <input
+                className="settings-input-hex"
+                type="text"
+                maxLength={7}
+                value={pending.theme.surfaceColor}
+                onChange={e => setPending(prev => ({ ...prev, theme: { ...prev.theme, surfaceColor: e.target.value } }))}
+                placeholder="#1e1e1e"
+                onBlur={e => applyThemeColor("surfaceColor", e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+              />
+            </div>
+            <div className="settings-field">
+              <span className="settings-field-label">Background</span>
+              <input
+                className="settings-input-hex"
+                type="text"
+                maxLength={7}
+                value={pending.theme.bgColor}
+                onChange={e => setPending(prev => ({ ...prev, theme: { ...prev.theme, bgColor: e.target.value } }))}
+                placeholder="#121212"
+                onBlur={e => applyThemeColor("bgColor", e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+              />
+            </div>
+          </div>
+
           {/* Download */}
           <div className="settings-section">
-            <div className="settings-section-title">Download</div>
+            <div className="settings-section-title">
+              <span>Download</span>
+              <button className="settings-section-reset" onClick={() => handleResetSection("download")} title="Reset to defaults">↺</button>
+            </div>
             <div className="settings-field">
               <span className="settings-field-label">Save Path</span>
               <div className="settings-folder-row">

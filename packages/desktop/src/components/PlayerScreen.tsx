@@ -1,4 +1,4 @@
-import type { TrackData, QueueState, MatchCandidatesResult, YtMatchTrack, WaveSettings, RadioStatus, ConfigData, FeedbackStatus, PhysicalMatchEntry } from "../types";
+import type { TrackData, QueueState, MatchCandidatesResult, YtMatchTrack, WaveSettings, RadioStatus, ConfigData, FeedbackStatus, PhysicalMatchEntry, ThemeColors } from "../types";
 import MatchMenu from "./MatchMenu";
 import WaveSettingsMenu from "./WaveSettingsMenu";
 import SettingsMenu from "./SettingsMenu";
@@ -23,6 +23,7 @@ interface PlayerScreenProps {
   displayArtist: string;
   displayCover: string | null;
   displayMode: "ym" | "yt";
+  theme: ThemeColors;
   // Match menu
   matchOpen: boolean;
   matchResult: MatchCandidatesResult | null;
@@ -87,7 +88,7 @@ export default function PlayerScreen(props: PlayerScreenProps) {
     currentTrack, isPlaying, currentTime, duration,
     canPrev, canNext, volume, feedback, radioStatus,
     downloading, downloadMsg,
-    displayTitle, displayArtist, displayCover, displayMode,
+    displayTitle, displayArtist, displayCover, displayMode, theme,
     searchQuery, searchResults, searching, searchOpen, setSearchOpen,
     matchOpen, matchResult, matchLoading, previewingId,
     physicalMatchOpen, physicalMatchExisting, isPhysicalMatch, physicalMatchMsg,
@@ -97,7 +98,12 @@ export default function PlayerScreen(props: PlayerScreenProps) {
   } = props;
 
   return (
-    <div className="app">
+    <div className="app" style={{
+      '--accent': theme.accentColor,
+      '--surface': theme.surfaceColor,
+      '--bg': theme.bgColor,
+      '--seek-pct': duration > 0 ? `${(currentTime / duration) * 100}%` : '0%',
+    } as React.CSSProperties}>
       <header className="header">
         <button className="settings-btn" onClick={props.onOpenSettings} title="Settings">⚙</button>
         <div className="search-area">

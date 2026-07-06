@@ -2,8 +2,14 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type {
   TrackData, QueueState, MatchCandidatesResult, YtMatchTrack,
   WaveSettings, RadioStatus, ConfigData, FeedbackStatus,
-  PhysicalMatchEntry,
+  PhysicalMatchEntry, ThemeColors,
 } from "../types";
+
+const DEFAULT_THEME: ThemeColors = {
+  accentColor: "#1db954",
+  surfaceColor: "#1e1e1e",
+  bgColor: "#121212",
+};
 
 export function usePlayer(setStatus: (s: any) => void) {
   // ============================================================
@@ -17,6 +23,7 @@ export function usePlayer(setStatus: (s: any) => void) {
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(false);
   const [displayMode, setDisplayMode] = useState<"ym" | "yt">("ym");
+  const [theme, setTheme] = useState<ThemeColors>(DEFAULT_THEME);
   const [volume, setVolume] = useState(0.5);
   const volumeRef = useRef(0.5);
   const [feedback, setFeedback] = useState<FeedbackStatus>("none");
@@ -225,9 +232,10 @@ export function usePlayer(setStatus: (s: any) => void) {
         const audio = audioRef.current;
         if (audio) audio.volume = savedVolume;
 
-        // Load saved display mode
+        // Load saved display mode and theme
         const savedMode = config.displayMode ?? "ym";
         setDisplayMode(savedMode);
+        setTheme(config.theme ?? DEFAULT_THEME);
 
         if (track) {
           setCurrentTrack(track);
@@ -670,7 +678,9 @@ const coverBlob = new Blob([coverData.audioData as BlobPart], { type: coverMime 
       await window.api.saveAllSettings({
         player: config.player,
         download: config.download,
+        theme: config.theme,
       });
+      setTheme(config.theme);
       closeSettings();
     } catch (e: any) {
       console.error("saveSettings error:", e.message ?? e);
@@ -823,7 +833,7 @@ const coverBlob = new Blob([coverData.audioData as BlobPart], { type: coverMime 
   return {
     // State
     currentTrack, isPlaying, currentTime, duration,
-    canPrev, canNext, displayMode,
+    canPrev, canNext, displayMode, theme,
     volume, feedback,
     radioStatus,
     downloading, downloadMsg, physicalMatchMsg,

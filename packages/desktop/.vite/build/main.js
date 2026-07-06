@@ -47184,7 +47184,12 @@ const CONFIG_DEFAULTS = {
   },
   displayMode: "ym",
   windowSize: { width: 1e3, height: 720 },
-  autoResize: false
+  autoResize: false,
+  theme: {
+    accentColor: "#1db954",
+    surfaceColor: "#1e1e1e",
+    bgColor: "#121212"
+  }
 };
 const SECRETS_DEFAULTS = {
   ym: { token: "", uid: 0 }
@@ -47266,6 +47271,24 @@ class ConfigManager extends FileStore {
     await this.save();
     return this.get();
   }
+  async resetSection(section) {
+    switch (section) {
+      case "player":
+        this.data.player = this.deepClone(CONFIG_DEFAULTS.player);
+        break;
+      case "window":
+        this.data.windowSize = this.deepClone(CONFIG_DEFAULTS.windowSize);
+        this.data.autoResize = CONFIG_DEFAULTS.autoResize;
+        break;
+      case "theme":
+        this.data.theme = this.deepClone(CONFIG_DEFAULTS.theme);
+        break;
+      case "download":
+        this.data.download = this.deepClone(CONFIG_DEFAULTS.download);
+        break;
+    }
+    await this.save();
+  }
 }
 class SecretsManager extends FileStore {
   constructor() {
@@ -47284,7 +47307,32 @@ class PhysicalMatchStore extends FileStore {
     const userDataPath = electron.app.getPath("userData");
     return path.join(userDataPath, "media");
   }
-  /** Удалить запись и её файлы */
+  async load() {
+    await super.load();
+    return this.validateFiles();
+  }
+  /** Проверить существование файлов на диске, удалить битые записи */
+  async validateFiles() {
+    const entries = Object.entries(this.data);
+    const toRemove = [];
+    for (const [key, entry] of entries) {
+      if (!fs.existsSync(entry.localFilePath)) {
+        console.log(`[PhysicalMatch] файл не найден, удаляю: ${entry.localFilePath} (${key})`);
+        toRemove.push(key);
+      }
+    }
+    if (toRemove.length > 0) {
+      for (const key of toRemove) {
+        delete this.data[key];
+      }
+      await this.save();
+      console.log(`[PhysicalMatch] удалено ${toRemove.length} битых записей, осталось ${Object.keys(this.data).length}`);
+    } else {
+      console.log(`[PhysicalMatch] все ${entries.length} файлов в порядке`);
+    }
+    return this.get();
+  }
+  /** Удалить запись */
   async remove(key) {
     const entry = this.data[key];
     if (entry) {
@@ -47306,6 +47354,33 @@ class MatchesStore extends FileStore {
 }
 const __filename$1 = require$$0$2.fileURLToPath(typeof document === "undefined" ? require("url").pathToFileURL(__filename).href : _documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === "SCRIPT" && _documentCurrentScript.src || new URL("main.js", document.baseURI).href);
 const __dirname$1 = path.dirname(__filename$1);
+let logBuffer = [];
+let logId = 0;
+const MAX_LOG = 2e3;
+function pushLog(message) {
+  logBuffer.push({ id: logId++, t: (/* @__PURE__ */ new Date()).toISOString().slice(11, 23), m: message });
+  if (logBuffer.length > MAX_LOG) logBuffer = logBuffer.slice(-MAX_LOG);
+}
+{
+  const origLog = console.log;
+  console.log = (...args) => {
+    const msg = args.map((a) => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ");
+    pushLog(msg);
+    origLog(...args);
+  };
+  const origError = console.error;
+  console.error = (...args) => {
+    const msg = args.map((a) => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ");
+    pushLog(`[ERROR] ${msg}`);
+    origError(...args);
+  };
+  const origWarn = console.warn;
+  console.warn = (...args) => {
+    const msg = args.map((a) => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ");
+    pushLog(`[WARN] ${msg}`);
+    origWarn(...args);
+  };
+}
 electron.protocol.registerSchemesAsPrivileged([
   { scheme: "local-media", privileges: { standard: true, secure: true, supportFetchAPI: true, media: true } }
 ]);
@@ -47451,7 +47526,29 @@ async function oauthViaBrowser() {
   });
 }
 electron.ipcMain.on("app:log", (_event, message) => {
-  console.log(`[RENDERER] ${message}`);
+  pushLog(`[RENDERER] ${message}`);
+});
+let logWindow = null;
+electron.ipcMain.handle("log:getBuffer", () => logBuffer);
+electron.ipcMain.handle("log:openWindow", () => {
+  if (logWindow && !logWindow.isDestroyed()) {
+    logWindow.focus();
+    return;
+  }
+  logWindow = new electron.BrowserWindow({
+    width: 800,
+    height: 500,
+    title: "Log Viewer",
+    webPreferences: {
+      preload: path.join(__dirname$1, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+  logWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(LOG_HTML)}`);
+  logWindow.on("closed", () => {
+    logWindow = null;
+  });
 });
 electron.ipcMain.handle("ping", async () => {
   const [ym, yt] = await Promise.all([
@@ -47724,6 +47821,14 @@ electron.ipcMain.handle("config:openFolderDialog", async () => {
 electron.ipcMain.handle("config:reset", async () => {
   return configManager.reset();
 });
+electron.ipcMain.handle("config:resetSection", async (_event, section) => {
+  await configManager.resetSection(section);
+  if (section === "window" && mainWindow && !mainWindow.isDestroyed()) {
+    const cfg = configManager.get();
+    mainWindow.setSize(cfg.windowSize.width, cfg.windowSize.height);
+  }
+  return configManager.get();
+});
 electron.ipcMain.handle("config:setDisplayMode", async (_event, mode) => {
   await configManager.set("displayMode", mode);
 });
@@ -47736,10 +47841,14 @@ electron.ipcMain.handle("config:setWindowSize", async (_event, size) => {
 electron.ipcMain.handle("config:setAutoResize", async (_event, enabled) => {
   await configManager.set("autoResize", enabled);
 });
+electron.ipcMain.handle("config:setTheme", async (_event, theme) => {
+  await configManager.set("theme", theme);
+});
 electron.ipcMain.handle("config:saveAll", async (_event, data2) => {
   var _a2;
   if (data2.player) await configManager.setPlayer(data2.player);
   if (((_a2 = data2.download) == null ? void 0 : _a2.path) !== void 0) await configManager.set("download.path", data2.download.path);
+  if (data2.theme) await configManager.set("theme", data2.theme);
   if (data2.player && rq) {
     if (data2.player.batchSize !== void 0) rq.batchSize = data2.player.batchSize;
     if (data2.player.refillThreshold !== void 0) rq.refillThreshold = data2.player.refillThreshold;
@@ -47776,6 +47885,9 @@ electron.ipcMain.handle("physical:save", async (_event, data2) => {
   const mediaDir = physicalMatchStore.getMediaDir();
   if (!fs.existsSync(mediaDir)) {
     fs.mkdirSync(mediaDir, { recursive: true });
+  }
+  if (!fs.existsSync(data2.audioPath)) {
+    throw new Error(`Source audio file not found: ${data2.audioPath}`);
   }
   const ext = path.extname(data2.audioPath);
   const audioFileName = `audio_${Date.now()}${ext}`;
@@ -47903,4 +48015,77 @@ electron.app.on("window-all-closed", () => {
 electron.app.on("activate", () => {
   if (electron.BrowserWindow.getAllWindows().length === 0) createWindow();
 });
+const LOG_HTML = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#111;color:#ccc;font-family:'Cascadia Code','Fira Code','Consolas',monospace;font-size:13px}
+#bar{display:flex;gap:8px;padding:8px 12px;background:#1a1a1a;border-bottom:1px solid #333;align-items:center;-webkit-app-region:drag}
+#bar button{-webkit-app-region:no-drag;background:#333;border:1px solid #555;color:#ddd;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px}
+#bar button:hover{background:#444}
+#bar .info{color:#888;font-size:12px;margin-left:auto}
+#log{padding:8px 12px;height:calc(100vh - 42px);overflow-y:auto;white-space:pre-wrap;word-break:break-all;user-select:text;font-variant-ligatures:none}
+#log::-webkit-scrollbar{width:6px}
+#log::-webkit-scrollbar-track{background:#111}
+#log::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
+.l{display:flex;gap:8px;padding:1px 0;line-height:1.5}
+.l:hover{background:#1a1a1a}
+.t{color:#666;flex-shrink:0}
+.l:has(.e){background:#1a0a0a}
+.l:has(.w){background:#1a1a00}
+.e{color:#ff5252}
+.w{color:#ffab00}
+</style>
+</head>
+<body>
+<div id="bar"><button onclick="copyAll()">📋 Copy All</button><button onclick="cls()">🗑 Clear</button><span class="info" id="info">0 lines</span></div>
+<div id="log"></div>
+<script>
+let lastId=-1;
+async function poll(){
+  try{
+    const buf=await window.api.logGetBuffer();
+    if(!buf||!buf.length)return;
+    const el=document.getElementById('log');
+    document.getElementById('info').textContent=buf.length+' lines';
+    const frag=document.createDocumentFragment();
+    for(const e of buf){
+      if(e.id<=lastId)continue;
+      const d=document.createElement('div');
+      d.className='l';
+      const ts=document.createElement('span');
+      ts.className='t';
+      ts.textContent=e.t;
+      d.appendChild(ts);
+      const msg=document.createElement('span');
+      if(e.m.includes('[ERROR]')||e.m.startsWith('Error'))msg.className='e';
+      else if(e.m.includes('[WARN]'))msg.className='w';
+      msg.textContent=e.m;
+      d.appendChild(msg);
+      frag.appendChild(d);
+      lastId=e.id;
+    }
+    el.appendChild(frag);
+    // Auto-scroll только если пользователь внизу (с запасом 10px)
+    const atBottom=el.scrollTop+el.clientHeight>=el.scrollHeight-10;
+    if(atBottom)el.scrollTop=el.scrollHeight;
+  }catch(e){}
+}
+async function copyAll(){
+  let entries;
+  try{entries=await window.api.logGetBuffer()}catch(e){return}
+  const txt=entries.map(function(e){return e.t+' '+e.m}).join('\\n');
+  try{await navigator.clipboard.writeText(txt)}catch(e){
+    const ta=document.createElement('textarea');
+    ta.value=txt;document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');ta.remove();
+  }
+}
+function cls(){document.getElementById('log').innerHTML='';lastId=-1;document.getElementById('info').textContent='0 lines'}
+setInterval(poll,500);poll();
+<\/script>
+</body>
+</html>`;
 //# sourceMappingURL=main.js.map

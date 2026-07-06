@@ -26,6 +26,24 @@
   margin-bottom: 10px;
   padding-bottom: 4px;
   border-bottom: 1px solid #333;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-section-reset {
+  background: none;
+  border: none;
+  color: #555;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.settings-section-reset:hover {
+  color: #ff9800;
 }
 
 .settings-field {
@@ -177,6 +195,32 @@
 
 .settings-action-btn--save:hover {
   background: #208a4c;
+}
+
+/* Hex color input field */
+.settings-input-hex {
+  background: #222;
+  border: 1px solid #555;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 10px;
+  width: 110px;
+  text-align: center;
+  outline: none;
+  font-family: monospace;
+  transition: border-color 0.15s;
+  text-transform: uppercase;
+}
+
+.settings-input-hex:focus {
+  border-color: var(--accent, #1db954);
+}
+
+.settings-input-hex::placeholder {
+  color: #555;
+  text-transform: none;
 }
 
 /* Numeric input field */

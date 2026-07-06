@@ -27,6 +27,12 @@ export interface DownloadConfig {
   format: string;
 }
 
+export interface ThemeColors {
+  accentColor: string;
+  surfaceColor: string;
+  bgColor: string;
+}
+
 export interface ConfigData {
   player: PlayerConfig;
   wave: WaveConfig;
@@ -34,6 +40,7 @@ export interface ConfigData {
   displayMode: "ym" | "yt";
   windowSize: { width: number; height: number };
   autoResize: boolean;
+  theme: ThemeColors;
 }
 
 export interface SecretsData {
@@ -67,6 +74,11 @@ const CONFIG_DEFAULTS: ConfigData = {
   displayMode: "ym",
   windowSize: { width: 1000, height: 720 },
   autoResize: false,
+  theme: {
+    accentColor: "#1db954",
+    surfaceColor: "#1e1e1e",
+    bgColor: "#121212",
+  },
 };
 
 const SECRETS_DEFAULTS: SecretsData = {
@@ -171,6 +183,25 @@ export class ConfigManager extends FileStore<ConfigData> {
     await this.save();
     return this.get();
   }
+
+  async resetSection(section: "player" | "window" | "theme" | "download"): Promise<void> {
+    switch (section) {
+      case "player":
+        this.data.player = this.deepClone(CONFIG_DEFAULTS.player);
+        break;
+      case "window":
+        this.data.windowSize = this.deepClone(CONFIG_DEFAULTS.windowSize);
+        this.data.autoResize = CONFIG_DEFAULTS.autoResize;
+        break;
+      case "theme":
+        this.data.theme = this.deepClone(CONFIG_DEFAULTS.theme);
+        break;
+      case "download":
+        this.data.download = this.deepClone(CONFIG_DEFAULTS.download);
+        break;
+    }
+    await this.save();
+  }
 }
 
 // ──────────────────────────────────────────────
@@ -215,7 +246,37 @@ export class PhysicalMatchStore extends FileStore<PhysicalMatchesData> {
     return path.join(userDataPath, "media");
   }
 
-  /** Удалить запись и её файлы */
+  async load(): Promise<PhysicalMatchesData> {
+    await super.load();
+    return this.validateFiles();
+  }
+
+  /** Проверить существование файлов на диске, удалить битые записи */
+  private async validateFiles(): Promise<PhysicalMatchesData> {
+    const entries = Object.entries(this.data);
+    const toRemove: string[] = [];
+
+    for (const [key, entry] of entries) {
+      if (!fsSync.existsSync(entry.localFilePath)) {
+        console.log(`[PhysicalMatch] файл не найден, удаляю: ${entry.localFilePath} (${key})`);
+        toRemove.push(key);
+      }
+    }
+
+    if (toRemove.length > 0) {
+      for (const key of toRemove) {
+        delete this.data[key];
+      }
+      await this.save();
+      console.log(`[PhysicalMatch] удалено ${toRemove.length} битых записей, осталось ${Object.keys(this.data).length}`);
+    } else {
+      console.log(`[PhysicalMatch] все ${entries.length} файлов в порядке`);
+    }
+
+    return this.get();
+  }
+
+  /** Удалить запись */
   async remove(key: string): Promise<void> {
     const entry = this.data[key];
     if (entry) {

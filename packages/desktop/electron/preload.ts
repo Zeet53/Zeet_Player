@@ -32,10 +32,12 @@ contextBridge.exposeInMainWorld("api", {
   setWaveConfig: (settings: any) => ipcRenderer.invoke("config:setWaveSettings", settings),
   openFolderDialog: () => ipcRenderer.invoke("config:openFolderDialog"),
   resetConfig: () => ipcRenderer.invoke("config:reset"),
+  resetSection: (section: string) => ipcRenderer.invoke("config:resetSection", section),
   saveAllSettings: (data: any) => ipcRenderer.invoke("config:saveAll", data),
   setDisplayMode: (mode: "ym" | "yt") => ipcRenderer.invoke("config:setDisplayMode", mode),
   setWindowSize: (size: { width: number; height: number }) => ipcRenderer.invoke("config:setWindowSize", size),
   setAutoResize: (enabled: boolean) => ipcRenderer.invoke("config:setAutoResize", enabled),
+  setTheme: (theme: any) => ipcRenderer.invoke("config:setTheme", theme),
 
   // Download
   downloadTrack: () => ipcRenderer.invoke("queue:downloadTrack"),
@@ -48,4 +50,8 @@ contextBridge.exposeInMainWorld("api", {
   physicalReadFile: (filePath: string) => ipcRenderer.invoke("physical:readFile", filePath),
   physicalList: () => ipcRenderer.invoke("physical:list"),
   physicalGetForTrack: (data: { artist: string; title: string }) => ipcRenderer.invoke("physical:getForTrack", data),
+
+  // Log viewer
+  logGetBuffer: () => ipcRenderer.invoke("log:getBuffer"),
+  logOpenWindow: () => ipcRenderer.invoke("log:openWindow"),
 });

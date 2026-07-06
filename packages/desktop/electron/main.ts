@@ -11,6 +11,44 @@ import { ConfigManager, SecretsManager, MatchesStore, PhysicalMatchStore } from 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// ── Log buffer ──
+interface LogEntry {
+  id: number;
+  t: string;   // timestamp HH:MM:SS.mmm
+  m: string;   // message
+}
+
+let logBuffer: LogEntry[] = [];
+let logId = 0;
+const MAX_LOG = 2000;
+
+function pushLog(message: string) {
+  logBuffer.push({ id: logId++, t: new Date().toISOString().slice(11, 23), m: message });
+  if (logBuffer.length > MAX_LOG) logBuffer = logBuffer.slice(-MAX_LOG);
+}
+
+// Intercept main process console methods
+{
+  const origLog = console.log;
+  console.log = (...args: any[]) => {
+    const msg = args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ");
+    pushLog(msg);
+    origLog(...args);
+  };
+  const origError = console.error;
+  console.error = (...args: any[]) => {
+    const msg = args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ");
+    pushLog(`[ERROR] ${msg}`);
+    origError(...args);
+  };
+  const origWarn = console.warn;
+  console.warn = (...args: any[]) => {
+    const msg = args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ");
+    pushLog(`[WARN] ${msg}`);
+    origWarn(...args);
+  };
+}
+
 // Register privileged scheme for local media BEFORE app.whenReady()
 protocol.registerSchemesAsPrivileged([
   { scheme: "local-media", privileges: { standard: true, secure: true, supportFetchAPI: true, media: true } },
@@ -187,7 +225,34 @@ async function oauthViaBrowser(): Promise<{ token: string; uid: number }> {
 // --- IPC ---
 
 ipcMain.on("app:log", (_event, message: string) => {
-  console.log(`[RENDERER] ${message}`);
+  pushLog(`[RENDERER] ${message}`);
+});
+
+// --- Log viewer ---
+
+let logWindow: BrowserWindow | null = null;
+
+ipcMain.handle("log:getBuffer", () => logBuffer);
+
+ipcMain.handle("log:openWindow", () => {
+  if (logWindow && !logWindow.isDestroyed()) {
+    logWindow.focus();
+    return;
+  }
+
+  logWindow = new BrowserWindow({
+    width: 800,
+    height: 500,
+    title: "Log Viewer",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  logWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(LOG_HTML)}`);
+  logWindow.on("closed", () => { logWindow = null; });
 });
 
 ipcMain.handle("ping", async () => {
@@ -505,6 +570,16 @@ ipcMain.handle("config:reset", async () => {
   return configManager.reset();
 });
 
+ipcMain.handle("config:resetSection", async (_event, section: "player" | "window" | "theme" | "download") => {
+  await configManager.resetSection(section);
+  // Применяем изменения, которые требуют немедленного эффекта
+  if (section === "window" && mainWindow && !mainWindow.isDestroyed()) {
+    const cfg = configManager.get();
+    mainWindow.setSize(cfg.windowSize.width, cfg.windowSize.height);
+  }
+  return configManager.get();
+});
+
 ipcMain.handle("config:setDisplayMode", async (_event, mode: "ym" | "yt") => {
   await configManager.set("displayMode", mode);
 });
@@ -520,9 +595,14 @@ ipcMain.handle("config:setAutoResize", async (_event, enabled: boolean) => {
   await configManager.set("autoResize", enabled);
 });
 
-ipcMain.handle("config:saveAll", async (_event, data: { player: any; download: any }) => {
+ipcMain.handle("config:setTheme", async (_event, theme: any) => {
+  await configManager.set("theme", theme);
+});
+
+ipcMain.handle("config:saveAll", async (_event, data: { player: any; download: any; theme?: any }) => {
   if (data.player) await configManager.setPlayer(data.player);
   if (data.download?.path !== undefined) await configManager.set("download.path", data.download.path);
+  if (data.theme) await configManager.set("theme", data.theme);
   // Apply to running queue
   if (data.player && rq) {
     if (data.player.batchSize !== undefined) rq.batchSize = data.player.batchSize;
@@ -565,6 +645,11 @@ ipcMain.handle("physical:save", async (_event, data: { key: string; audioPath: s
   const mediaDir = physicalMatchStore.getMediaDir();
   if (!fs.existsSync(mediaDir)) {
     fs.mkdirSync(mediaDir, { recursive: true });
+  }
+
+  // Validate source file exists
+  if (!fs.existsSync(data.audioPath)) {
+    throw new Error(`Source audio file not found: ${data.audioPath}`);
   }
 
   // Copy audio file
@@ -724,3 +809,79 @@ app.on("window-all-closed", () => {
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
+
+// ── Log viewer HTML (inline, no extra file needed) ──
+
+const LOG_HTML = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#111;color:#ccc;font-family:'Cascadia Code','Fira Code','Consolas',monospace;font-size:13px}
+#bar{display:flex;gap:8px;padding:8px 12px;background:#1a1a1a;border-bottom:1px solid #333;align-items:center;-webkit-app-region:drag}
+#bar button{-webkit-app-region:no-drag;background:#333;border:1px solid #555;color:#ddd;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px}
+#bar button:hover{background:#444}
+#bar .info{color:#888;font-size:12px;margin-left:auto}
+#log{padding:8px 12px;height:calc(100vh - 42px);overflow-y:auto;white-space:pre-wrap;word-break:break-all;user-select:text;font-variant-ligatures:none}
+#log::-webkit-scrollbar{width:6px}
+#log::-webkit-scrollbar-track{background:#111}
+#log::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
+.l{display:flex;gap:8px;padding:1px 0;line-height:1.5}
+.l:hover{background:#1a1a1a}
+.t{color:#666;flex-shrink:0}
+.l:has(.e){background:#1a0a0a}
+.l:has(.w){background:#1a1a00}
+.e{color:#ff5252}
+.w{color:#ffab00}
+</style>
+</head>
+<body>
+<div id="bar"><button onclick="copyAll()">📋 Copy All</button><button onclick="cls()">🗑 Clear</button><span class="info" id="info">0 lines</span></div>
+<div id="log"></div>
+<script>
+let lastId=-1;
+async function poll(){
+  try{
+    const buf=await window.api.logGetBuffer();
+    if(!buf||!buf.length)return;
+    const el=document.getElementById('log');
+    document.getElementById('info').textContent=buf.length+' lines';
+    const frag=document.createDocumentFragment();
+    for(const e of buf){
+      if(e.id<=lastId)continue;
+      const d=document.createElement('div');
+      d.className='l';
+      const ts=document.createElement('span');
+      ts.className='t';
+      ts.textContent=e.t;
+      d.appendChild(ts);
+      const msg=document.createElement('span');
+      if(e.m.includes('[ERROR]')||e.m.startsWith('Error'))msg.className='e';
+      else if(e.m.includes('[WARN]'))msg.className='w';
+      msg.textContent=e.m;
+      d.appendChild(msg);
+      frag.appendChild(d);
+      lastId=e.id;
+    }
+    el.appendChild(frag);
+    // Auto-scroll только если пользователь внизу (с запасом 10px)
+    const atBottom=el.scrollTop+el.clientHeight>=el.scrollHeight-10;
+    if(atBottom)el.scrollTop=el.scrollHeight;
+  }catch(e){}
+}
+async function copyAll(){
+  let entries;
+  try{entries=await window.api.logGetBuffer()}catch(e){return}
+  const txt=entries.map(function(e){return e.t+' '+e.m}).join('\\n');
+  try{await navigator.clipboard.writeText(txt)}catch(e){
+    const ta=document.createElement('textarea');
+    ta.value=txt;document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');ta.remove();
+  }
+}
+function cls(){document.getElementById('log').innerHTML='';lastId=-1;document.getElementById('info').textContent='0 lines'}
+setInterval(poll,500);poll();
+<\/script>
+</body>
+</html>`;

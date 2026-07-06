@@ -31,10 +31,12 @@ electron.contextBridge.exposeInMainWorld("api", {
   setWaveConfig: (settings) => electron.ipcRenderer.invoke("config:setWaveSettings", settings),
   openFolderDialog: () => electron.ipcRenderer.invoke("config:openFolderDialog"),
   resetConfig: () => electron.ipcRenderer.invoke("config:reset"),
+  resetSection: (section) => electron.ipcRenderer.invoke("config:resetSection", section),
   saveAllSettings: (data) => electron.ipcRenderer.invoke("config:saveAll", data),
   setDisplayMode: (mode) => electron.ipcRenderer.invoke("config:setDisplayMode", mode),
   setWindowSize: (size) => electron.ipcRenderer.invoke("config:setWindowSize", size),
   setAutoResize: (enabled) => electron.ipcRenderer.invoke("config:setAutoResize", enabled),
+  setTheme: (theme) => electron.ipcRenderer.invoke("config:setTheme", theme),
   // Download
   downloadTrack: () => electron.ipcRenderer.invoke("queue:downloadTrack"),
   // Physical matching
@@ -44,6 +46,9 @@ electron.contextBridge.exposeInMainWorld("api", {
   physicalDelete: (key) => electron.ipcRenderer.invoke("physical:delete", key),
   physicalReadFile: (filePath) => electron.ipcRenderer.invoke("physical:readFile", filePath),
   physicalList: () => electron.ipcRenderer.invoke("physical:list"),
-  physicalGetForTrack: (data) => electron.ipcRenderer.invoke("physical:getForTrack", data)
+  physicalGetForTrack: (data) => electron.ipcRenderer.invoke("physical:getForTrack", data),
+  // Log viewer
+  logGetBuffer: () => electron.ipcRenderer.invoke("log:getBuffer"),
+  logOpenWindow: () => electron.ipcRenderer.invoke("log:openWindow")
 });
 //# sourceMappingURL=preload.js.map

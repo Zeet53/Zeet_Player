@@ -91,6 +91,12 @@ export interface DownloadConfig {
   format: string;
 }
 
+export interface ThemeColors {
+  accentColor: string;
+  surfaceColor: string;
+  bgColor: string;
+}
+
 export interface ConfigData {
   player: PlayerConfig;
   wave: { moodEnergy: string; diversity: string; language: string };
@@ -98,6 +104,7 @@ export interface ConfigData {
   displayMode: "ym" | "yt";
   windowSize: { width: number; height: number };
   autoResize: boolean;
+  theme: ThemeColors;
 }
 
 export type DownloadStatus = "done" | "cancelled" | "error";
@@ -155,11 +162,13 @@ export interface Api {
   setWaveConfig(settings: { moodEnergy: string; diversity: string; language: string }): Promise<void>;
   openFolderDialog(): Promise<string | null>;
   resetConfig(): Promise<ConfigData>;
-  saveAllSettings(data: { player: Partial<PlayerConfig>; download: { path?: string } }): Promise<void>;
+  resetSection(section: "player" | "window" | "theme" | "download"): Promise<ConfigData>;
+  saveAllSettings(data: { player: Partial<PlayerConfig>; download: { path?: string }; theme?: ThemeColors }): Promise<void>;
   setPlayerSettings(settings: Partial<PlayerConfig>): Promise<void>;
   setDisplayMode(mode: "ym" | "yt"): Promise<void>;
   setWindowSize(size: { width: number; height: number }): Promise<void>;
   setAutoResize(enabled: boolean): Promise<void>;
+  setTheme(theme: ThemeColors): Promise<void>;
 
   // Download
   downloadTrack(): Promise<DownloadResult>;
@@ -172,6 +181,10 @@ export interface Api {
   physicalReadFile(filePath: string): Promise<{ audioData: Uint8Array } | null>;
   physicalList(): Promise<Record<string, PhysicalMatchEntry>>;
   physicalGetForTrack(data: { artist: string; title: string }): Promise<PhysicalMatchEntry | null>;
+
+  // Log viewer
+  logGetBuffer(): Promise<Array<{ id: number; t: string; m: string }>>;
+  logOpenWindow(): Promise<void>;
 }
 
 declare global {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePlayer } from "./hooks/usePlayer";
 import { useAuth } from "./hooks/useAuth";
 import PingScreen from "./components/PingScreen";
@@ -23,6 +23,18 @@ export default function App() {
   const [status, setStatus] = useState<"pinging" | "idle" | "loading" | "playing">("pinging");
   const player = usePlayer(setStatus);
   const auth = useAuth(setStatus, player.initQueueAndPlay);
+
+  // Global Ctrl+L → open log viewer (works on any screen)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.code === "KeyL") {
+        e.preventDefault();
+        window.api.logOpenWindow().catch(err => console.error("logOpenWindow:", err));
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
 
   // Ping screen
   if (status === "pinging") {
@@ -67,6 +79,7 @@ export default function App() {
       displayArtist={player.displayArtist}
       displayCover={player.displayCover}
       displayMode={player.displayMode}
+      theme={player.theme}
       // Match menu
       matchOpen={player.matchOpen}
       matchResult={player.matchResult}
