@@ -47181,7 +47181,10 @@ const CONFIG_DEFAULTS = {
   download: {
     path: "",
     format: "mp3"
-  }
+  },
+  displayMode: "ym",
+  windowSize: { width: 1e3, height: 720 },
+  autoResize: false
 };
 const SECRETS_DEFAULTS = {
   ym: { token: "", uid: 0 }
@@ -47354,6 +47357,7 @@ function createQueue(session2) {
 const YM_OAUTH_CLIENT_ID = "23cabbbdc6cd418abb4b39c32c41195d";
 const YM_OAUTH_CLIENT_SECRET = "53bc75238f0c4d08a118e51fe9203300";
 const YM_REDIRECT_URI = "https://music.yandex.ru/";
+let resizeTimer = null;
 async function oauthViaBrowser() {
   return new Promise((resolve, reject) => {
     const AUTH_TIMEOUT = 5 * 60 * 1e3;
@@ -47720,6 +47724,18 @@ electron.ipcMain.handle("config:openFolderDialog", async () => {
 electron.ipcMain.handle("config:reset", async () => {
   return configManager.reset();
 });
+electron.ipcMain.handle("config:setDisplayMode", async (_event, mode) => {
+  await configManager.set("displayMode", mode);
+});
+electron.ipcMain.handle("config:setWindowSize", async (_event, size) => {
+  await configManager.set("windowSize", size);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.setSize(size.width, size.height);
+  }
+});
+electron.ipcMain.handle("config:setAutoResize", async (_event, enabled) => {
+  await configManager.set("autoResize", enabled);
+});
 electron.ipcMain.handle("config:saveAll", async (_event, data2) => {
   var _a2;
   if (data2.player) await configManager.setPlayer(data2.player);
@@ -47827,10 +47843,26 @@ electron.ipcMain.handle("ym:setWaveSettings", async (_event, settings) => {
   const track2 = await rq.forward();
   return attachFeedback(track2 ? track2.toJSON() : null);
 });
+function setupResizeHandler(win) {
+  win.on("resize", () => {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      const cfg = configManager.get();
+      if (!cfg.autoResize) return;
+      if (win.isDestroyed()) return;
+      const [w, h] = win.getSize();
+      configManager.set("windowSize", { width: w, height: h }).catch(
+        (e) => console.error("[Window] failed to save size:", e.message)
+      );
+    }, 500);
+  });
+}
 function createWindow() {
+  const cfg = configManager.get();
+  const winSize = cfg.windowSize || { width: 1e3, height: 720 };
   mainWindow = new electron.BrowserWindow({
-    width: 1e3,
-    height: 720,
+    width: winSize.width,
+    height: winSize.height,
     minWidth: 700,
     minHeight: 500,
     webPreferences: {
@@ -47842,6 +47874,7 @@ function createWindow() {
     show: false
   });
   mainWindow.once("ready-to-show", () => mainWindow.show());
+  setupResizeHandler(mainWindow);
   if (VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(VITE_DEV_SERVER_URL);
   } else {

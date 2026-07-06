@@ -43,6 +43,7 @@ export default function SettingsMenu(props: SettingsMenuProps) {
   const [pending, setPending] = useState<ConfigData>(() => JSON.parse(JSON.stringify(props.config)));
   const [resetting, setResetting] = useState(false);
   const overlayRef = useRef<HTMLDivElement | null>(null);
+  const windowSizeRef = useRef(pending.windowSize);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -65,11 +66,28 @@ export default function SettingsMenu(props: SettingsMenuProps) {
     setPending(prev => ({ ...prev, player: { ...prev.player, ...partial } }));
   };
 
+  const applyWindowSize = (size: { width: number; height: number }) => {
+    windowSizeRef.current = size;
+    setPending(prev => ({ ...prev, windowSize: size }));
+    window.api.setWindowSize(size).catch(e => console.error("setWindowSize error:", e));
+  };
+
+  const toggleAutoResize = () => {
+    setPending(prev => {
+      const next = !prev.autoResize;
+      window.api.setAutoResize(next).catch(e => console.error("setAutoResize error:", e));
+      return { ...prev, autoResize: next };
+    });
+  };
+
   const handleReset = async () => {
     setResetting(true);
     try {
       const defaults = await window.api.resetConfig();
       setPending(defaults);
+      windowSizeRef.current = defaults.windowSize;
+      // Apply default window size immediately
+      window.api.setWindowSize(defaults.windowSize).catch(e => console.error("setWindowSize error:", e));
     } catch (e: any) {
       console.error("reset error:", e.message ?? e);
     }
@@ -125,6 +143,62 @@ export default function SettingsMenu(props: SettingsMenuProps) {
               min={5} max={70}
               onChange={v => updatePlayer({ maxHistoryLength: v })}
             />
+          </div>
+
+          {/* Window Size */}
+          <div className="settings-section">
+            <div className="settings-section-title">Window</div>
+            <div className="settings-field">
+              <span className="settings-field-label">Width</span>
+              <input
+                className="settings-input-num"
+                type="text"
+                inputMode="numeric"
+                defaultValue={pending.windowSize.width}
+                onKeyDown={e => {
+                  if (!/^\d$/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Tab" && e.key !== "Home" && e.key !== "End") {
+                    e.preventDefault();
+                  }
+                }}
+                onBlur={e => {
+                  let v = parseInt(e.target.value, 10);
+                  if (isNaN(v) || v < 700) v = 700;
+                  if (v > 3000) v = 3000;
+                  e.target.value = String(v);
+                  applyWindowSize({ width: v, height: pending.windowSize.height });
+                }}
+              />
+            </div>
+            <div className="settings-field">
+              <span className="settings-field-label">Height</span>
+              <input
+                className="settings-input-num"
+                type="text"
+                inputMode="numeric"
+                defaultValue={pending.windowSize.height}
+                onKeyDown={e => {
+                  if (!/^\d$/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Tab" && e.key !== "Home" && e.key !== "End") {
+                    e.preventDefault();
+                  }
+                }}
+                onBlur={e => {
+                  let v = parseInt(e.target.value, 10);
+                  if (isNaN(v) || v < 500) v = 500;
+                  if (v > 2000) v = 2000;
+                  e.target.value = String(v);
+                  applyWindowSize({ width: pending.windowSize.width, height: v });
+                }}
+              />
+            </div>
+            <div className="settings-field">
+              <span className="settings-field-label">Auto-resize</span>
+              <button
+                className={`settings-toggle ${pending.autoResize ? "settings-toggle--on" : ""}`}
+                onClick={toggleAutoResize}
+              >
+                {pending.autoResize ? "ON" : "OFF"}
+              </button>
+            </div>
           </div>
 
           {/* Download */}

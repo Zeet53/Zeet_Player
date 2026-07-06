@@ -178,3 +178,51 @@
 .settings-action-btn--save:hover {
   background: #208a4c;
 }
+
+/* Numeric input field */
+.settings-input-num {
+  background: #222;
+  border: 1px solid #555;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 10px;
+  width: 80px;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.settings-input-num:focus {
+  border-color: #4caf50;
+}
+
+/* Toggle switch */
+.settings-toggle {
+  background: #333;
+  border: 1px solid #555;
+  color: #888;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  min-width: 52px;
+  text-align: center;
+}
+
+.settings-toggle:hover {
+  background: #3a3a3a;
+}
+
+.settings-toggle--on {
+  background: #1a5c2a;
+  border-color: #2a8c4f;
+  color: #4caf50;
+}
+
+.settings-toggle--on:hover {
+  background: #206e34;
+}

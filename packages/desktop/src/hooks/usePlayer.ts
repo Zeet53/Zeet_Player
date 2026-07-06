@@ -225,6 +225,10 @@ export function usePlayer(setStatus: (s: any) => void) {
         const audio = audioRef.current;
         if (audio) audio.volume = savedVolume;
 
+        // Load saved display mode
+        const savedMode = config.displayMode ?? "ym";
+        setDisplayMode(savedMode);
+
         if (track) {
           setCurrentTrack(track);
           currentTrackRef.current = track;
@@ -809,7 +813,11 @@ const coverBlob = new Blob([coverData.audioData as BlobPart], { type: coverMime 
       : null;
 
   const toggleDisplay = useCallback(() => {
-    setDisplayMode(prev => prev === "ym" ? "yt" : "ym");
+    setDisplayMode(prev => {
+      const next = prev === "ym" ? "yt" : "ym";
+      window.api.setDisplayMode(next).catch(e => console.error("setDisplayMode error:", e));
+      return next;
+    });
   }, []);
 
   return {

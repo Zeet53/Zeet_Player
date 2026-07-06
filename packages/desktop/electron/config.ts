@@ -31,6 +31,9 @@ export interface ConfigData {
   player: PlayerConfig;
   wave: WaveConfig;
   download: DownloadConfig;
+  displayMode: "ym" | "yt";
+  windowSize: { width: number; height: number };
+  autoResize: boolean;
 }
 
 export interface SecretsData {
@@ -61,6 +64,9 @@ const CONFIG_DEFAULTS: ConfigData = {
     path: "",
     format: "mp3",
   },
+  displayMode: "ym",
+  windowSize: { width: 1000, height: 720 },
+  autoResize: false,
 };
 
 const SECRETS_DEFAULTS: SecretsData = {

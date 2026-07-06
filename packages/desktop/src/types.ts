@@ -95,6 +95,9 @@ export interface ConfigData {
   player: PlayerConfig;
   wave: { moodEnergy: string; diversity: string; language: string };
   download: DownloadConfig;
+  displayMode: "ym" | "yt";
+  windowSize: { width: number; height: number };
+  autoResize: boolean;
 }
 
 export type DownloadStatus = "done" | "cancelled" | "error";
@@ -154,6 +157,9 @@ export interface Api {
   resetConfig(): Promise<ConfigData>;
   saveAllSettings(data: { player: Partial<PlayerConfig>; download: { path?: string } }): Promise<void>;
   setPlayerSettings(settings: Partial<PlayerConfig>): Promise<void>;
+  setDisplayMode(mode: "ym" | "yt"): Promise<void>;
+  setWindowSize(size: { width: number; height: number }): Promise<void>;
+  setAutoResize(enabled: boolean): Promise<void>;
 
   // Download
   downloadTrack(): Promise<DownloadResult>;

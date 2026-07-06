@@ -32,6 +32,9 @@ electron.contextBridge.exposeInMainWorld("api", {
   openFolderDialog: () => electron.ipcRenderer.invoke("config:openFolderDialog"),
   resetConfig: () => electron.ipcRenderer.invoke("config:reset"),
   saveAllSettings: (data) => electron.ipcRenderer.invoke("config:saveAll", data),
+  setDisplayMode: (mode) => electron.ipcRenderer.invoke("config:setDisplayMode", mode),
+  setWindowSize: (size) => electron.ipcRenderer.invoke("config:setWindowSize", size),
+  setAutoResize: (enabled) => electron.ipcRenderer.invoke("config:setAutoResize", enabled),
   // Download
   downloadTrack: () => electron.ipcRenderer.invoke("queue:downloadTrack"),
   // Physical matching

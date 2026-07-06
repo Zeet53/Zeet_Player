@@ -33,6 +33,9 @@ contextBridge.exposeInMainWorld("api", {
   openFolderDialog: () => ipcRenderer.invoke("config:openFolderDialog"),
   resetConfig: () => ipcRenderer.invoke("config:reset"),
   saveAllSettings: (data: any) => ipcRenderer.invoke("config:saveAll", data),
+  setDisplayMode: (mode: "ym" | "yt") => ipcRenderer.invoke("config:setDisplayMode", mode),
+  setWindowSize: (size: { width: number; height: number }) => ipcRenderer.invoke("config:setWindowSize", size),
+  setAutoResize: (enabled: boolean) => ipcRenderer.invoke("config:setAutoResize", enabled),
 
   // Download
   downloadTrack: () => ipcRenderer.invoke("queue:downloadTrack"),
